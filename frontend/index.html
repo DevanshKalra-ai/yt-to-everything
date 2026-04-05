@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YT to Everything — Repurpose YouTube Videos with AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #000;
+    --card: #0f0f0f;
+    --border: rgba(255,255,255,0.08);
+    --text: #fff;
+    --muted: rgba(255,255,255,0.5);
+    --blue: #4764CD;
+    --blue-light: #5694F2;
+    --red: #FF0000;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* CURSOR GLOW */
+  .cursor-glow {
+    position: fixed;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(71,100,205,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    transform: translate(-50%, -50%);
+    transition: left 0.1s ease-out, top 0.1s ease-out;
+    will-change: left, top;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 10;
+  }
+  .logo {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+  .logo-tag {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 80px 24px 48px;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(71,100,205,0.35);
+    border-radius: 40px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--blue-light);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'Manrope', sans-serif;
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--blue-light); }
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 480px;
+    margin: 0 auto 48px;
+    line-height: 1.6;
+  }
+
+  /* INPUT AREA */
+  .input-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .input-box {
+    display: flex;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px 6px 6px 20px;
+    gap: 12px;
+    transition: border-color 0.3s;
+  }
+  .input-box:focus-within {
+    border-color: rgba(71,100,205,0.5);
+    box-shadow: 0 0 0 3px rgba(71,100,205,0.08);
+  }
+  .yt-icon {
+    flex-shrink: 0;
+    color: var(--red);
+  }
+  .input-box input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    padding: 10px 0;
+  }
+  .input-box input::placeholder { color: var(--muted); }
+  .btn-generate {
+    background: linear-gradient(135deg, var(--blue), var(--blue-light));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-generate:hover { opacity: 0.9; transform: scale(1.02); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* TAGS */
+  .output-tags {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .tag {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  /* LOADING */
+  .loading {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 60px 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .loading.active { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { color: var(--muted); font-size: 14px; }
+  .loading-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .loading-step {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .loading-step.active { opacity: 1; color: var(--text); }
+  .step-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .loading-step.active .step-dot { background: var(--blue-light); }
+
+  /* RESULTS */
+  .results {
+    display: none;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+  .results.active { display: block; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tab.active {
+    background: rgba(71,100,205,0.15);
+    color: var(--blue-light);
+    border: 1px solid rgba(71,100,205,0.25);
+  }
+  .tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.04); }
+
+  /* CONTENT PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .content-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-label-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+  .btn-copy {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-copy:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .btn-copy.copied { color: #28CA41; border-color: rgba(40,202,65,0.3); }
+
+  .card-body {
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.85);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* RESET BTN */
+  .reset-wrap {
+    text-align: center;
+    margin-top: 32px;
+  }
+  .btn-reset {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    padding: 10px 24px;
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+  /* ERROR */
+  .error-box {
+    display: none;
+    max-width: 680px;
+    margin: 24px auto 0;
+    background: rgba(255,59,48,0.08);
+    border: 1px solid rgba(255,59,48,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #FF6B6B;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .error-box.active { display: block; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 40px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    position: relative;
+    z-index: 1;
+  }
+  footer a { color: var(--blue-light); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    header { padding: 16px 20px; }
+    .hero { padding: 60px 20px 32px; }
+    .input-box { padding: 6px 6px 6px 14px; }
+    .btn-generate span { display: none; }
+    .results { padding: 32px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    YT to Everything
+  </div>
+  <span class="logo-tag">Powered by Gemini AI</span>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+    One URL. Four pieces of content.
+  </div>
+  <h1>Repurpose Any YouTube Video<br /><span>in Seconds</span></h1>
+  <p>Paste a YouTube link and get a summary, LinkedIn post, tweet thread, and newsletter — instantly.</p>
+
+  <!-- INPUT -->
+  <div class="input-wrap">
+    <div class="input-box">
+      <svg class="yt-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+      <input type="url" id="ytUrl" placeholder="https://www.youtube.com/watch?v=..." />
+      <button class="btn-generate" id="generateBtn" onclick="generate()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span>Generate</span>
+      </button>
+    </div>
+
+    <div class="output-tags">
+      <span class="tag">📝 Summary</span>
+      <span class="tag">💼 LinkedIn Post</span>
+      <span class="tag">🐦 Tweet Thread</span>
+      <span class="tag">📧 Newsletter</span>
+    </div>
+  </div>
+</section>
+
+<!-- ERROR -->
+<div class="error-box" id="errorBox"></div>
+
+<!-- LOADING -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p>Gemini is watching your video...</p>
+  <div class="loading-steps">
+    <div class="loading-step" id="step1"><div class="step-dot"></div> Analyzing video content</div>
+    <div class="loading-step" id="step2"><div class="step-dot"></div> Extracting key insights</div>
+    <div class="loading-step" id="step3"><div class="step-dot"></div> Writing your content</div>
+    <div class="loading-step" id="step4"><div class="step-dot"></div> Formatting outputs</div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results" id="results">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('summary', this)">📝 Summary</button>
+    <button class="tab" onclick="switchTab('linkedin', this)">💼 LinkedIn</button>
+    <button class="tab" onclick="switchTab('tweet', this)">🐦 Tweet Thread</button>
+    <button class="tab" onclick="switchTab('newsletter', this)">📧 Newsletter</button>
+  </div>
+
+  <!-- Summary -->
+  <div class="panel active" id="panel-summary">
+    <div class="content-card">
+      <div class="card-header">
+        <div class="card-label"><div class="card-label-dot" style="background:#5694F2"></div> Summary</div>
+        <button class="btn-copy" onclick="copyContent('summary-text', this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="card-body" id="summary-text"></div>
+    </div>
+  </div>
+
+  <!-- LinkedIn -->
+  <div class="panel" id="panel-linkedin">
+    <div class="content-card">
+      <div class="card-header">
+        <div class="card-label"><div class="card-label-dot" style="background:#0A66C2"></div> LinkedIn Post</div>
+        <button class="btn-copy" onclick="copyContent('linkedin-text', this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="card-body" id="linkedin-text"></div>
+    </div>
+  </div>
+
+  <!-- Tweet -->
+  <div class="panel" id="panel-tweet">
+    <div class="content-card">
+      <div class="card-header">
+        <div class="card-label"><div class="card-label-dot" style="background:#1DA1F2"></div> Tweet Thread</div>
+        <button class="btn-copy" onclick="copyContent('tweet-text', this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="card-body" id="tweet-text"></div>
+    </div>
+  </div>
+
+  <!-- Newsletter -->
+  <div class="panel" id="panel-newsletter">
+    <div class="content-card">
+      <div class="card-header">
+        <div class="card-label"><div class="card-label-dot" style="background:#F0731E"></div> Newsletter</div>
+        <button class="btn-copy" onclick="copyContent('newsletter-text', this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="card-body" id="newsletter-text"></div>
+    </div>
+  </div>
+
+  <div class="reset-wrap">
+    <button class="btn-reset" onclick="reset()">← Try another video</button>
+  </div>
+</div>
+
+<footer>
+  Built by <a href="https://sequonix.com" target="_blank">Sequonix</a> · Powered by Gemini AI
+</footer>
+
+<script>
+  const API_URL = 'https://yt-to-everything.vercel.app/api/generate';
+
+  /* Cursor glow */
+  const glow = document.getElementById('cursorGlow');
+  document.addEventListener('mousemove', e => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top  = e.clientY + 'px';
+  });
+
+  /* Tab switching */
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  /* Copy */
+  function copyContent(id, btn) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  /* Loading steps animation */
+  let stepInterval;
+  function startLoadingSteps() {
+    const steps = ['step1','step2','step3','step4'];
+    let i = 0;
+    steps.forEach(s => document.getElementById(s).classList.remove('active'));
+    stepInterval = setInterval(() => {
+      if (i < steps.length) {
+        document.getElementById(steps[i]).classList.add('active');
+        i++;
+      }
+    }, 1800);
+  }
+
+  /* Generate */
+  async function generate() {
+    const url = document.getElementById('ytUrl').value.trim();
+    const errorBox = document.getElementById('errorBox');
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    const btn = document.getElementById('generateBtn');
+
+    errorBox.classList.remove('active');
+    results.classList.remove('active');
+
+    if (!url) {
+      errorBox.textContent = 'Please enter a YouTube URL.';
+      errorBox.classList.add('active');
+      return;
+    }
+
+    const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    if (!youtubeRegex.test(url)) {
+      errorBox.textContent = 'That doesn\'t look like a valid YouTube URL.';
+      errorBox.classList.add('active');
+      return;
+    }
+
+    btn.disabled = true;
+    loading.classList.add('active');
+    startLoadingSteps();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+      document.getElementById('summary-text').textContent = data.summary;
+      document.getElementById('linkedin-text').textContent = data.linkedin;
+      document.getElementById('tweet-text').textContent = data.tweet;
+      document.getElementById('newsletter-text').textContent = data.newsletter;
+
+      loading.classList.remove('active');
+      clearInterval(stepInterval);
+      results.classList.add('active');
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (err) {
+      loading.classList.remove('active');
+      clearInterval(stepInterval);
+      errorBox.textContent = err.message || 'Something went wrong. Try again.';
+      errorBox.classList.add('active');
+    }
+
+    btn.disabled = false;
+  }
+
+  /* Allow Enter key */
+  document.getElementById('ytUrl').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generate();
+  });
+
+  /* Reset */
+  function reset() {
+    document.getElementById('ytUrl').value = '';
+    document.getElementById('results').classList.remove('active');
+    document.getElementById('errorBox').classList.remove('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
