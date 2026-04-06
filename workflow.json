@@ -29,7 +29,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=AIzaSyD-SXpqAaof0HPxj6QMBCOsH6F7bweidmQ",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=YOUR_GEMINI_API_KEY",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
